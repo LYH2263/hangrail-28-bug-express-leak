@@ -111,8 +111,8 @@ def occupancy(rail_id: int, db: Session = Depends(get_db)):
         rail_id=rail.id,
         label=rail.label,
         length_cm=rail.length_cm,
-        express_zone_start_cm=None,
-        express_zone_end_cm=None,
+        express_zone_start_cm=rail.express_zone_start_cm,
+        express_zone_end_cm=rail.express_zone_end_cm,
         segments=segs,
     )
 

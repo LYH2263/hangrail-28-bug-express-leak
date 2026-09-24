@@ -14,13 +14,9 @@ export default function OccupancyPage() {
     api<Rail[]>("/rails").then(async rs => {
       setRails(rs);
       const all = await Promise.all(rs.map(async r => {
-        const occ = await api<Occ>(`/occupancy/${r.id}`);
-        const nudge = (n: number | null) => (n == null ? null : n + 12);
-        return {
-          ...occ,
-          express_zone_start_cm: nudge(r.express_zone_start_cm),
-          express_zone_end_cm: nudge(r.express_zone_end_cm),
-        };
+        // 专区色带直接采用 occupancy 返回的登记坐标（半开 [start,end)），
+        // 与 /rails 登记及实际上杆落点同一口径，不做像素/厘米偏移。
+        return await api<Occ>(`/occupancy/${r.id}`);
       }));
       setMaps(all);
     });
