@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
-type Rail = { id: number; label: string; length_cm: number; express_zone_start_cm: number | null; express_zone_end_cm: number | null };
 type Occ = { rail_id: number; label: string; length_cm: number; express_zone_start_cm: number | null; express_zone_end_cm: number | null; segments: { ticket_code: string; garment_name: string; is_express: boolean; start_cm: number; end_cm: number }[] };
 
 function hasZone(m: Occ) {
@@ -8,22 +7,15 @@ function hasZone(m: Occ) {
 }
 
 export default function OccupancyPage() {
-  const [rails, setRails] = useState<Rail[]>([]);
   const [maps, setMaps] = useState<Occ[]>([]);
   useEffect(() => {
-    api<Rail[]>("/rails").then(async rs => {
-      setRails(rs);
-      const all = await Promise.all(rs.map(async r => {
-        const occ = await api<Occ>(`/occupancy/${r.id}`);
-        const nudge = (n: number | null) => (n == null ? null : n + 12);
-        return {
-          ...occ,
-          express_zone_start_cm: nudge(r.express_zone_start_cm),
-          express_zone_end_cm: nudge(r.express_zone_end_cm),
-        };
-      }));
-      setMaps(all);
-    });
+    // 专区坐标直接取自 /occupancy（与挂杆登记同源），前端不再二次拉取或偏移
+    api<{ id: number }[]>("/rails")
+      .then(async (rs) => {
+        const all = await Promise.all(rs.map((r) => api<Occ>(`/occupancy/${r.id}`)));
+        setMaps(all);
+      })
+      .catch(() => setMaps([]));
   }, []);
   return (<>
     <h2>占位图（横向尺线）</h2>
@@ -65,6 +57,6 @@ export default function OccupancyPage() {
         </div>
       </div>
     ))}
-    {!rails.length && <p>暂无挂杆</p>}
+    {!maps.length && <p>暂无挂杆</p>}
   </>);
 }

@@ -107,12 +107,13 @@ def occupancy(rail_id: int, db: Session = Depends(get_db)):
             )
         )
     segs.sort(key=lambda s: s.start_cm)
+    # 专区坐标以挂杆登记值为唯一口径，占位图色带直接使用，不再由前端推算
     return OccupancyOut(
         rail_id=rail.id,
         label=rail.label,
         length_cm=rail.length_cm,
-        express_zone_start_cm=None,
-        express_zone_end_cm=None,
+        express_zone_start_cm=rail.express_zone_start_cm,
+        express_zone_end_cm=rail.express_zone_end_cm,
         segments=segs,
     )
 
@@ -142,8 +143,9 @@ def hang(body: HangRequest, db: Session = Depends(get_db)):
     is_express = bool(order.is_express)
 
     def try_place(zones_first: bool):
-        # 加急工单第一趟只尝试各杆专区；第二趟在各杆全杆扫描（first_fit 内部
-        # 仍会先查专区，但专区已满时自然落到专区外）。
+        # 加急工单第一趟只尝试各杆专区内空隙（无专区的杆跳过）；第二趟
+        # 以 is_express=False 扫描，专区整体视为占用，只找专区外空隙——
+        # 普通工单只走第二趟，因此永远不会落入专区。
         for rail, occupied in rail_gaps:
             zone = rail_express_zone(rail)
             place = first_fit(

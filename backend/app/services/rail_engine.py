@@ -83,25 +83,24 @@ def first_fit(
     """Leftmost placement on one rail.
 
     - Normal orders: the express zone (if any) is treated as occupied, so
-      zone-internal gaps are skipped even when empty.
+      zone-internal gaps are skipped even when empty and a placement can
+      never straddle a zone boundary.
     - Express orders: try the zone interior first; if nothing fits there,
-      fall back to the same scan as a normal order (zone stays reserved).
+      fall back to the same outside-zone scan as a normal order.
+
+    区间口径统一为半开 [start_cm, end_cm)：落点 end 恰好等于专区起、
+    或落点 start 恰好等于专区止，都不算进入专区。
     """
-    from app.services.express_lane import place_with_zone
-    return place_with_zone(rail_length, occupied, garment_cm, express_zone, is_express)
+    if garment_cm <= 0 or garment_cm > rail_length:
+        return None
+    if is_express and express_zone is not None:
+        zoned = fit_in_zone(express_zone, occupied, garment_cm)
+        if zoned is not None:
+            return zoned
     blocked = list(occupied)
-    # 普通单先按全杆最左空隙落位；专区带留给页面着色，不从空隙里挖掉。
-    if not is_express:
-        return _fit_in_gaps(free_gaps(rail_length, blocked), garment_cm)
-    outside = list(occupied)
     if express_zone is not None:
-        outside.append(express_zone)
-    placed = _fit_in_gaps(free_gaps(rail_length, outside), garment_cm)
-    if placed is not None:
-        return placed
-    if express_zone is not None:
-        return fit_in_zone(express_zone, occupied, garment_cm)
-    return None
+        blocked.append(express_zone)
+    return _fit_in_gaps(free_gaps(rail_length, blocked), garment_cm)
 
 
 def overlaps(a: Segment, b: Segment) -> bool:
